@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Search Terms Dashboard – Auto-Load Excel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Self-contained, auto-loading Excel dashboard with KPIs, filters, and charts" />
+
+  <!-- SheetJS + Chart.js + FileSaver (CDNs; page still works on GitHub Pages) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    /* Theme tokens */
+    :root{--bg:#0f1216;--panel:#161b22;--text:#e7ecf3;--muted:#9aa6b2;--accent:#8ab4f8;--ok:#36d399;--warn:#fbbf24;--danger:#f87171;--border:#273043;--chip:#212734;--shadow:0 8px 24px rgba(0,0,0,.35)}
+    body.light{--bg:#f7f9fc;--panel:#ffffff;--text:#0f172a;--muted:#475569;--accent:#2563eb;--ok:#059669;--warn:#d97706;--danger:#dc2626;--border:#e2e8f0;--chip:#eef2f7;--shadow:0 6px 18px rgba(15,23,42,.08)}
+    /* Base */
+    *{box-sizing:border-box} html,body{height:100%} body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans";color:var(--text);background:radial-gradient(1200px 600px at 20% -10%,#1a2333 0%,var(--bg) 45%) fixed}
+    h1,h2,h3{margin:0;font-weight:700;letter-spacing:.3px} a{color:var(--accent);text-decoration:none} small{color:var(--muted)}
+    /* Header */
+    .app-header{display:flex;align-items:center;justify-content:space-between;padding:20px clamp(16px,3vw,32px);border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);position:sticky;top:0;backdrop-filter:blur(6px);z-index:10}
+    .subtitle{margin-top:4px;color:var(--muted)}
+    .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    button{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;transition:transform .05s ease, background .2s ease, border-color .2s ease}
+    button:hover{transform:translateY(-1px)} button:disabled{opacity:.5;cursor:not-allowed} button.ghost{background:transparent}
+    .theme-toggle{display:inline-flex;align-items:center;gap:6px;background:var(--chip)} .theme-toggle .icon{font-size:16px}
+    select.inline,input[type=file]{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+    /* Status */
+    .status{padding:10px clamp(16px,3vw,32px)} .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:var(--chip);border:1px solid var(--border);border-radius:999px;color:var(--muted)}
+    /* Filters */
+    .filters{display:grid;gap:12px;grid-template-columns:repeat(12,1fr);padding:10px clamp(16px,3vw,32px) 2px}
+    .filter{display:grid;gap:6px} .filter label{font-weight:600;color:var(--muted)}
+    .filter select,.filter input[type="search"],.filter input[type="date"]{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px;outline:none}
+    .filter.grow{grid-column:span 5} .filter.right{align-items:end} .filter.date-filter{grid-column:span 3} .filter:nth-child(1),.filter:nth-child(2){grid-column:span 2}
+    .date-range{display:flex;align-items:center;gap:8px} .sep{color:var(--muted)}
+    /* KPIs */
+    .kpis{padding:8px clamp(16px,3vw,32px);display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .kpi-card{grid-column:span 3;min-height:120px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+    .kpi-label{color:var(--muted);font-weight:600;letter-spacing:.2px} .kpi-value{font-size:26px;font-weight:800;margin-top:6px} .kpi-sub{color:var(--muted);margin-top:10px} .kpi-sub-strong{color:var(--ok);font-weight:700}
+    /* Charts */
+    .charts{padding:8px clamp(16px,3vw,32px) 28px;display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .chart-card{position:relative;grid-column:span 4;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 14px 10px;box-shadow:var(--shadow);height:360px;max-height:420px;overflow:hidden}
+    .chart-title{font-weight:700;margin-bottom:8px;color:var(--muted)}
+    canvas{width:100%;height:100%;display:block}
+    .nodata{position:absolute;inset:0 0 10px 0;display:grid;place-items:center;color:var(--muted);font-weight:600;pointer-events:none}
+    /* Footer */
+    .app-footer{padding:18px clamp(16px,3vw,32px);border-top:1px solid var(--border);color:var(--muted);text-align:center;background:linear-gradient(0deg,rgba(255,255,255,.02),transparent)}
+    /* Responsive */
+    @media (max-width:1200px){.kpi-card{grid-column:span 6}.chart-card{grid-column:span 6}}
+    @media (max-width:720px){.filter:nth-child(1),.filter:nth-child(2),.filter.date-filter{grid-column:span 6}.filter.grow{grid-column:span 12}.kpi-card,.chart-card{grid-column:span 12}.chart-card{height:300px}}
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div>
+      <h1>🔎 Search Terms Analytics</h1>
+      <p class="subtitle">Auto-loads Excel from this repo folder (supports <code>excel-index.json</code>, query <code>?file=</code>, or dev server listing)</p>
+    </div>
+    <div class="actions">
+      <select id="fileSelect" class="inline" hidden title="Select an Excel file in this repo"></select>
+      <button id="pickLocalBtn" class="ghost" title="Open an .xlsx from your computer">Open XLSX</button>
+      <input id="fileInput" type="file" accept=".xlsx,.xls" hidden />
+      <button id="downloadCsvBtn" class="ghost" disabled title="Download filtered rows as CSV">Download CSV</button>
+      <button id="themeToggle" class="theme-toggle" title="Toggle dark/light"><span class="icon">🌙</span><span class="label">Dark</span></button>
+    </div>
+  </header>
+
+  <!-- Status -->
+  <section class="status" id="statusArea" aria-live="polite">
+    <div class="pill">Loading Excel data…</div>
+  </section>
+
+  <!-- Filters -->
+  <section class="filters" id="filtersSection" hidden>
+    <div class="filter"><label for="categoryFilter">Category</label><select id="categoryFilter"><option value="__ALL__">All</option></select></div>
+    <div class="filter"><label for="brandFilter">Brand</label><select id="brandFilter"><option value="__ALL__">All</option></select></div>
+    <div class="filter date-filter" id="dateFilterWrap" hidden>
+      <label>Date Range</label><div class="date-range"><input type="date" id="startDate"><span class="sep">—</span><input type="date" id="endDate"></div>
+    </div>
+    <div class="filter grow"><label for="searchFilter">Search Term</label><input id="searchFilter" type="search" placeholder="Type to filter terms…"></div>
+    <div class="filter right"><button id="clearFiltersBtn" class="ghost" title="Clear filters">Clear Filters</button></div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="kpis" id="kpiSection" hidden>
+    <div class="kpi-card"><div class="kpi-label">Total Searches</div><div class="kpi-value" id="kpiTotalSearches">—</div><div class="kpi-sub" id="kpiTotalImpressions">Impressions: —</div></div>
+    <div class="kpi-card"><div class="kpi-label">Top Search Term</div><div class="kpi-value" id="kpiTopTerm">—</div><div class="kpi-sub" id="kpiTopTermVolume">Volume: —</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Clicks</div><div class="kpi-value" id="kpiClicks">—</div><div class="kpi-sub">Avg CTR (weighted)</div><div class="kpi-sub-strong" id="kpiCTR">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Conversions</div><div class="kpi-value" id="kpiConversions">—</div><div class="kpi-sub">Revenue</div><div class="kpi-sub-strong" id="kpiRevenue">—</div></div>
+  </section>
+
+  <!-- Charts -->
+  <section class="charts" id="chartsSection" hidden>
+    <div class="chart-card" id="barCard"><div class="chart-title">Top 10 Search Terms by Volume</div><div class="nodata" hidden>No data to display</div><canvas id="barChart"></canvas></div>
+    <div class="chart-card" id="pieCard"><div class="chart-title" id="pieTitle">Breakdown by Category</div><div class="nodata" hidden>No data to display</div><canvas id="pieChart"></canvas></div>
+    <div class="chart-card" id="lineCard" hidden><div class="chart-title" id="lineTitle">CTR Over Time</div><div class="nodata" hidden>No data to display</div><canvas id="lineChart"></canvas></div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="app-footer"><small>Static app – perfect for GitHub Pages. To list Excel files on Pages, add an <code>excel-index.json</code> manifest next to this file.</small></footer>
+
+  <script>
+    'use strict';
+    /* =============================== THEME =============================== */
+    (function initTheme(){
+      const saved=localStorage.getItem('theme')||'dark';
+      if(saved==='light') document.body.classList.add('light');
+      updateThemeButton();
+      document.getElementById('themeToggle').addEventListener('click',()=>{
+        document.body.classList.toggle('light');
+        localStorage.setItem('theme', document.body.classList.contains('light')?'light':'dark');
+        updateThemeButton();
+        if (window._renderAll) window._renderAll();
+      });
+      function updateThemeButton(){
+        const btn=document.getElementById('themeToggle');
+        const light=document.body.classList.contains('light');
+        btn.querySelector('.icon').textContent= light?'☀️':'🌙';
+        btn.querySelector('.label').textContent= light?'Light':'Dark';
+      }
+    })();
+
+    /* ============================== GLOBALS ============================== */
+    const SELECT_ALL="__ALL__";
+    const MANIFEST_FILE = 'excel-index.json'; // optional manifest for GitHub Pages
+    const el={
+      status:document.getElementById('statusArea'),
+      filters:document.getElementById('filtersSection'),
+      kpis:document.getElementById('kpiSection'),
+      charts:document.getElementById('chartsSection'),
+      fileSelect:document.getElementById('fileSelect'),
+      pickLocalBtn:document.getElementById('pickLocalBtn'),
+      fileInput:document.getElementById('fileInput'),
+      barCard:document.getElementById('barCard'), pieCard:document.getElementById('pieCard'), lineCard:document.getElementById('lineCard'),
+      bar:document.getElementById('barChart'), pie:document.getElementById('pieChart'), line:document.getElementById('lineChart'),
+      lineTitle:document.getElementById('lineTitle'), pieTitle:document.getElementById('pieTitle'),
+      cat:document.getElementById('categoryFilter'), brand:document.getElementById('brandFilter'),
+      start:document.getElementById('startDate'), end:document.getElementById('endDate'),
+      search:document.getElementById('searchFilter'), clear:document.getElementById('clearFiltersBtn'),
+      dlCsv:document.getElementById('downloadCsvBtn'),
+      kpi:{searches:document.getElementById('kpiTotalSearches'), impressions:document.getElementById('kpiTotalImpressions'), topTerm:document.getElementById('kpiTopTerm'), topVol:document.getElementById('kpiTopTermVolume'), clicks:document.getElementById('kpiClicks'), ctr:document.getElementById('kpiCTR'), conv:document.getElementById('kpiConversions'), rev:document.getElementById('kpiRevenue')}
+    };
+    const state={ rawHeaders:[], rows:[], columns:{}, present:{category:false,brand:false,date:false,ctr:false}, charts:{bar:null,pie:null,line:null}, fileName:'', availableFiles:[] };
+
+    const SYN={
+      term:["search term","customer search term","term","keyword","search keyword","search query","query"],
+      impressions:["impressions","searches","volume","search volume","views"],
+      clicks:["clicks","click"],
+      ctr:["ctr","click-through rate","click through rate","click thru rate"],
+      conv:["conversions","orders","purchases","transactions","sales qty","convs"],
+      revenue:["revenue","sales","gmv","turnover","amount","net sales","aov"],
+      category:["category","product category","cat","product type","taxonomy"],
+      brand:["brand","maker","manufacturer","brand name"],
+      date:["date","day","reporting date","calendar date","dt","order date"]
+    };
+    const SUBSTR={
+      term:[/term|keyword|query/i], impressions:[/impr|search|volume|views?/i], clicks:[/click/i], ctr:[/ctr|click.?through/i], conv:[/conv|order|purchase|transaction/i], revenue:[/rev(enue)?|sales|gmv|turnover|amount/i], category:[/categor|product type|taxonomy/i], brand:[/brand|manufacturer|maker/i], date:[/date|day/i]
+    };
+    const fmt={ int:n=>isFinite(n)?n.toLocaleString():"—", pct:r=>isFinite(r)?(r*100).toLocaleString(undefined,{maximumFractionDigits:2})+'%':"—", money:n=>isFinite(n)?n.toLocaleString(undefined,{style:"currency",currency:"USD"}):"—" };
+
+    const normalizeHeader=h=>String(h||"").trim().toLowerCase().replace(/\s+/g," ");
+    const escapeHtml=s=>String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+    const debounce=(fn,ms=150)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+    const toISO=d=>!(d instanceof Date)?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+    function setStatus(html){ el.status.innerHTML = '<div class="pill">'+html+'</div>'; }
+
+    /* ============================ AUTO LOADER ============================ */
+    window.addEventListener('DOMContentLoaded', bootstrap);
+
+    async function bootstrap(){
+      try{
+        // Buttons
+        el.pickLocalBtn.addEventListener('click', ()=> el.fileInput.click());
+        el.fileInput.addEventListener('change', handleLocalFile);
+
+        // Resolve list of .xlsx files
+        state.availableFiles = await getExcelList();
+        setupFilePicker(state.availableFiles);
+
+        // Choose which to open
+        const url= new URL(window.location.href);
+        const qFile = url.searchParams.get('file');
+        const last  = localStorage.getItem('lastExcelFile');
+
+        if(qFile){
+          await tryLoadSpecific(qFile);
+        }else if(last && state.availableFiles.includes(last)){
+          await tryLoadSpecific(last);
+        }else if(state.availableFiles.length){
+          await tryLoadSpecific(state.availableFiles[0]);
+        }else{
+          // Try common default name; if it fails, wait for user to pick local file
+          try { await tryLoadSpecific('search_data.xlsx'); }
+          catch { setStatus('📁 Tip: add <code>excel-index.json</code> with file names, or click <b>Open XLSX</b> to load a local file.'); }
+        }
+      }catch(err){
+        console.error(err);
+        setStatus('⚠️ Could not auto-load Excel. On GitHub Pages, add <code>excel-index.json</code> next to this file, or click <b>Open XLSX</b>.');
+      }
+    }
+
+    async function handleLocalFile(e){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      setStatus('Reading local file <code>'+escapeHtml(file.name)+'</code> …');
+      const buf = await file.arrayBuffer();
+      await tryLoadFromBuffer(buf, file.name);
+      // Reset input so the same file can be chosen again later
+      e.target.value = '';
+    }
+
+    async function getExcelList(){
+      // 1) Try manifest (best for GitHub Pages)
+      try{
+        const res = await fetch(MANIFEST_FILE, { cache:'no-store' });
+        if(res.ok){
+          const list = await res.json();
+          if(Array.isArray(list) && list.every(x=>typeof x==='string')){
+            return Array.from(new Set(list)).sort((a,b)=>a.localeCompare(b));
+          }
+        }
+      }catch(_){ /* ignore */ }
+
+      // 2) Try directory listing (works on local dev servers with autoindex)
+      const auto = await listXlsxInDirectory();
+      if(auto.length) return auto;
+
+      // 3) Fallback to empty (we will attempt default name or local picker)
+      return [];
+    }
+
+    function setupFilePicker(files){
+      if(!Array.isArray(files) || files.length < 2){ el.fileSelect.hidden = true; return; }
+      el.fileSelect.innerHTML = files.map(f=>'<option value="'+escapeHtml(f)+'">'+escapeHtml(f)+'</option>').join('');
+      el.fileSelect.hidden = false;
+      el.fileSelect.addEventListener('change', async (e)=>{
+        const name = e.target.value; if(!name) return; await tryLoadSpecific(name);
+      });
+    }
+
+    async function tryLoadSpecific(fileName){
+      setStatus('Loading <code>'+escapeHtml(fileName)+'</code> …');
+      const buf = await fetchArrayBuffer(fileName);
+      await tryLoadFromBuffer(buf, fileName);
+    }
+
+    async function tryLoadFromBuffer(buf, fileName){
+      const wb  = XLSX.read(buf, { type:'array', cellDates:true, cellNF:true, cellText:false });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+
+      // Dual-pass extraction to recover values from formula cells missing cached raw
+      const raw  = XLSX.utils.sheet_to_json(ws, { header:1, raw:true,  defval:"" });
+      const text = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
+      const aoa  = raw.map((row,r)=> row.map((v,c)=> (v===""||v==null) ? (text[r]?.[c] ?? "") : v));
+
+      if(aoa.length < 2) throw new Error('Sheet is empty or lacks enough rows');
+
+      // Per requirement: Row 1 blank, Row 2 headers, data from Row 3 (with robustness)
+      let headerRowIndex = 1;
+      if (countNonEmpty(aoa[1]) < 2){
+        for(let i=0;i<Math.min(10,aoa.length);i++){
+          if (countNonEmpty(aoa[i]) >= 2){ headerRowIndex=i; break; }
+        }
+      }
+
+      const headers = (aoa[headerRowIndex]||[]).map(h => String(h||"").trim());
+      state.rawHeaders = headers.slice();
+      const dataRows = aoa.slice(headerRowIndex+1);
+
+      // Build row objects (keep both raw header & normalized keys)
+      const rows=[];
+      for(const row of dataRows){
+        if(!row || row.every(v=>v==null || String(v).trim()==="")) continue;
+        const obj={};
+        headers.forEach((h,idx)=>{
+          const norm=normalizeHeader(h);
+          let val=row[idx];
+          const fam=columnFamilySmart(norm);
+          if (fam==='date')      val=parseMaybeDate(val);
+          else if (['impressions','clicks','ctr','conv','revenue'].includes(fam)) val=parseNumber(val);
+          obj[h]=val; obj[norm]=val;
+        });
+        rows.push(obj);
+      }
+      state.rows = rows;
+
+      // Column detection (exact + substring heuristics)
+      state.columns = {
+        term:        findHeaderSmart(headers, SYN.term, SUBSTR.term),
+        impressions: findHeaderSmart(headers, SYN.impressions, SUBSTR.impressions),
+        clicks:      findHeaderSmart(headers, SYN.clicks, SUBSTR.clicks),
+        ctr:         findHeaderSmart(headers, SYN.ctr, SUBSTR.ctr),
+        conv:        findHeaderSmart(headers, SYN.conv, SUBSTR.conv),
+        revenue:     findHeaderSmart(headers, SYN.revenue, SUBSTR.revenue),
+        category:    findHeaderSmart(headers, SYN.category, SUBSTR.category),
+        brand:       findHeaderSmart(headers, SYN.brand, SUBSTR.brand),
+        date:        findHeaderSmart(headers, SYN.date, SUBSTR.date)
+      };
+      state.present = {
+        category: !!state.columns.category,
+        brand:    !!state.columns.brand,
+        date:     !!state.columns.date,
+        ctr:      !!state.columns.ctr
+      };
+
+      // Remember file name (fix for CSV naming) + picker sync
+      state.fileName = String(fileName||'');
+      if(state.fileName) localStorage.setItem('lastExcelFile', state.fileName);
+      if(!el.fileSelect.hidden && state.fileName){ el.fileSelect.value = state.fileName; }
+
+      initFilters();
+      enableUI(true);
+      _renderAll();
+
+      setStatus('Loaded <code>'+escapeHtml(state.fileName||'(local file)')+'</code> • Rows: '+rows.length.toLocaleString()+' • Sheet: '+escapeHtml(sheetName));
+    }
+
+    async function fetchArrayBuffer(url){
+      const res = await fetch(url, { cache:'no-store' });
+      if(!res.ok) throw new Error('HTTP '+res.status+' for '+url);
+      return await res.arrayBuffer();
+    }
+
+    async function listXlsxInDirectory(){
+      // Works with directory listings from typical dev servers (python -m http.server, nginx autoindex, etc.)
+      try{
+        const res = await fetch('./', { cache:'no-store' });
+        if(!res.ok) return [];
+        const html = await res.text();
+        const matches = [...html.matchAll(/href="([^"?#]+\.(?:xlsx|XLSX))"/g)].map(m => decodeURIComponent(m[1]));
+        const uniq = Array.from(new Set(matches.filter(n => !/^\./.test(n))));
+        return uniq.sort((a,b)=>a.localeCompare(b));
+      }catch(_){ return []; }
+    }
+
+    /* ======================== PARSING UTILITIES ========================= */
+    function countNonEmpty(arr){ return (arr||[]).reduce((n,v)=> n + (v!==undefined && v!==null && String(v).trim()!==""), 0); }
+    function parseNumber(v){
+      if(v==null) return 0;
+      if(typeof v==='number') return isFinite(v)?v:0;
+      let s=String(v).trim(); if(!s) return 0;
+      if(/^\((.*)\)$/.test(s)) s=s.replace(/^\((.*)\)$/,'-$1'); // accounting negative (1,234) => -1,234
+      if(/%$/.test(s)){ const num=parseFloat(s.replace(/[%\s,]/g,'')); return isFinite(num)?num/100:0; }
+      s=s.replace(/[$€£₹¥₩]|[A-Za-z]/g,'').replace(/,/g,'').trim();
+      const num=parseFloat(s); return isFinite(num)?num:0;
+    }
+    function parseMaybeDate(v){
+      if(v==null||v==="") return null;
+      if(typeof v==='number'){ const o=XLSX.SSF.parse_date_code(v); if(o&&o.y&&o.m&&o.d) return new Date(o.y,o.m-1,o.d); }
+      const d=new Date(v); return isNaN(+d)?null:d;
+    }
+    function findHeaderSmart(headers, exactList, substrRx){
+      const L=headers.map(normalizeHeader);
+      for(const k of exactList){ const idx=L.indexOf(k); if(idx!==-1) return {idx, name:headers[idx]}; }
+      for(let i=0;i<L.length;i++){ if(substrRx.some(rx=>rx.test(L[i]))) return {idx:i, name:headers[i]}; }
+      return null;
+    }
+    function columnFamilySmart(norm){
+      const has=(arr,rx)=> (arr?.includes(norm) || rx?.some(r=>r.test(norm)));
+      if (has(SYN.term,SUBSTR.term)) return 'term';
+      if (has(SYN.impressions,SUBSTR.impressions)) return 'impressions';
+      if (has(SYN.clicks,SUBSTR.clicks)) return 'clicks';
+      if (has(SYN.ctr,SUBSTR.ctr)) return 'ctr';
+      if (has(SYN.conv,SUBSTR.conv)) return 'conv';
+      if (has(SYN.revenue,SUBSTR.revenue)) return 'revenue';
+      if (has(SYN.category,SUBSTR.category)) return 'category';
+      if (has(SYN.brand,SUBSTR.brand)) return 'brand';
+      if (has(SYN.date,SUBSTR.date)) return 'date';
+      return 'other';
+    }
+
+    /* =============================== FILTERS ============================ */
+    function initFilters(){
+      buildSelect(el.cat,  uniqValues('category'));
+      buildSelect(el.brand,uniqValues('brand'));
+      toggle(el.cat.closest('.filter'),   state.present.category);
+      toggle(el.brand.closest('.filter'), state.present.brand);
+
+      if (state.present.date){
+        const dates = state.rows.map(r => r[normalizeHeader(state.columns.date.name)]).filter(Boolean).sort((a,b)=>a-b);
+        el.start.value = dates[0] ? toISO(dates[0]) : '';
+        el.end.value   = dates[dates.length-1] ? toISO(dates[dates.length-1]) : '';
+        el.dateFilterWrap = document.getElementById('dateFilterWrap');
+        el.dateFilterWrap.hidden = false;
+      } else {
+        document.getElementById('dateFilterWrap').hidden = true;
+        el.start.value = ''; el.end.value = '';
+      }
+
+      [el.cat, el.brand, el.start, el.end].forEach(n => n.addEventListener('change', ()=>{
+        if(n===el.start || n===el.end){
+          if(el.start.value && el.end.value && el.start.value > el.end.value){
+            const tmp = el.start.value; el.start.value = el.end.value; el.end.value = tmp;
+          }
+        }
+        _renderAll();
+      }));
+      el.search.addEventListener('input', debounce(_renderAll, 200));
+      el.clear.addEventListener('click', e => {
+        e.preventDefault();
+        el.cat.value = SELECT_ALL; el.brand.value = SELECT_ALL;
+        if (state.present.date){
+          const dates = state.rows.map(r => r[normalizeHeader(state.columns.date.name)]).filter(Boolean).sort((a,b)=>a-b);
+          el.start.value = dates[0] ? toISO(dates[0]) : '';
+          el.end.value   = dates[dates.length-1] ? toISO(dates[dates.length-1]) : '';
+        } else { el.start.value=''; el.end.value=''; }
+        el.search.value = '';
+        _renderAll();
+      });
+    }
+    function uniqValues(kind){
+      const col = state.columns[kind];
+      if(!col) return [];
+      const key = normalizeHeader(col.name);
+      const set = new Set();
+      state.rows.forEach(r => {
+        const v = r[key];
+        if (v==null || v==="") return;
+        set.add(String(v));
+      });
+      return Array.from(set).sort((a,b)=> String(a).localeCompare(String(b)));
+    }
+    function buildSelect(sel, options){
+      sel.innerHTML = '<option value="'+SELECT_ALL+'">All</option>' + options.map(v=>'<option value="'+escapeHtml(v)+'">'+escapeHtml(v)+'</option>').join('');
+    }
+    function toggle(node, show){ if(!node) return; node.style.display = show ? '' : 'none'; }
+
+    function getFilteredRows(){
+      const termKey  = state.columns.term ? normalizeHeader(state.columns.term.name) : null;
+      const catKey   = state.columns.category ? normalizeHeader(state.columns.category.name) : null;
+      const brandKey = state.columns.brand ? normalizeHeader(state.columns.brand.name) : null;
+      const dateKey  = state.columns.date ? normalizeHeader(state.columns.date.name) : null;
+
+      const needle = el.search.value.trim().toLowerCase();
+      const from = dateKey && el.start.value ? new Date(el.start.value+'T00:00:00') : null;
+      const to   = dateKey && el.end.value   ? new Date(el.end.value  +'T23:59:59') : null;
+
+      return state.rows.filter(r=>{
+        if (needle && termKey){ const t=(r[termKey]??'').toString().toLowerCase(); if(!t.includes(needle)) return false; }
+        if (catKey   && el.cat.value  !== SELECT_ALL && String(r[catKey])   !== el.cat.value)   return false;
+        if (brandKey && el.brand.value!== SELECT_ALL && String(r[brandKey]) !== el.brand.value) return false;
+        if (dateKey && (from||to)){
+          const d=r[dateKey]; if(!(d instanceof Date)) return false;
+          if (from && d<from) return false; if (to && d>to) return false;
+        }
+        return true;
+      });
+    }
+
+    /* ================================ KPIs ============================== */
+    function computeKPIs(rows){
+      const k={
+        term: state.columns.term ? normalizeHeader(state.columns.term.name) : null,
+        imp:  state.columns.impressions ? normalizeHeader(state.columns.impressions.name) : null,
+        clk:  state.columns.clicks ? normalizeHeader(state.columns.clicks.name) : null,
+        ctr:  state.columns.ctr ? normalizeHeader(state.columns.ctr.name) : null,
+        conv: state.columns.conv ? normalizeHeader(state.columns.conv.name) : null,
+        rev:  state.columns.revenue ? normalizeHeader(state.columns.revenue.name) : null
+      };
+      let impT=0, clkT=0, convT=0, revT=0;
+      const volKey = k.imp || k.clk || k.conv;
+      let topTerm=null, topVol=-Infinity;
+      for(const r of rows){
+        const imp=+r[k.imp]||0, clk=+r[k.clk]||0, cnv=+r[k.conv]||0, rev=+r[k.rev]||0;
+        const vol=volKey?(+r[volKey]||0):0; const term=k.term ? r[k.term] : '(unknown)';
+        impT+=imp; clkT+=clk; convT+=cnv; revT+=rev;
+        if (vol>topVol){ topVol=vol; topTerm=term; }
+      }
+      return { totalImpressions:impT, totalClicks:clkT, totalConversions:convT, totalRevenue:revT, avgCTR:impT>0?clkT/impT:0, topTerm:topTerm??'—', topTermVolume:isFinite(topVol)?topVol:0 };
+    }
+    function renderKPIs(x){
+      el.kpi.searches.textContent = fmt.int(x.totalImpressions);
+      el.kpi.impressions.textContent = 'Impressions: ' + fmt.int(x.totalImpressions);
+      el.kpi.topTerm.textContent = x.topTerm || '—';
+      el.kpi.topVol.textContent = 'Volume: ' + fmt.int(x.topTermVolume);
+      el.kpi.clicks.textContent = fmt.int(x.totalClicks);
+      el.kpi.ctr.textContent = fmt.pct(x.avgCTR);
+      el.kpi.conv.textContent = fmt.int(x.totalConversions);
+      el.kpi.rev.textContent = fmt.money(x.totalRevenue);
+    }
+
+    /* ================================ CHARTS ============================ */
+    function setNoData(cardEl, hasData){
+      const nd=cardEl.querySelector('.nodata');
+      if(!nd) return;
+      nd.hidden = !!hasData; // hide when we actually have data
+    }
+    function chartColors(n){ const light=document.body.classList.contains('light'); const L=light?55:65; return Array.from({length:n},(_,i)=>'hsl('+Math.round((360/n)*i)+', 70%, '+L+'%)'); }
+
+    function renderBar(rows){
+      const k={ term: state.columns.term ? normalizeHeader(state.columns.term.name) : null,
+                imp: state.columns.impressions ? normalizeHeader(state.columns.impressions.name) : null,
+                clk: state.columns.clicks ? normalizeHeader(state.columns.clicks.name) : null,
+                conv: state.columns.conv ? normalizeHeader(state.columns.conv.name) : null };
+      const volKey = k.imp || k.clk || k.conv;
+      const map=new Map();
+      for(const r of rows){ const t = k.term ? String(r[k.term]) : '(unknown)'; const v = volKey ? (+r[volKey]||0) : 0; map.set(t, (map.get(t)||0)+v); }
+      const pairs = [...map.entries()].filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const labels = pairs.map(p=>p[0]); const data = pairs.map(p=>p[1]);
+      const hasData = labels.length>0 && data.some(v=>v>0);
+      setNoData(el.barCard, hasData);
+      if(state.charts.bar) state.charts.bar.destroy();
+      const dsColor = chartColors(1)[0];
+      state.charts.bar = new Chart(el.bar.getContext('2d'), {
+        type:'bar',
+        data:{ labels, datasets:[{ label:'Volume', data, borderWidth:1, backgroundColor: dsColor, borderColor: dsColor }] },
+        options:{
+          indexAxis:'y',
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:{
+            legend:{display:false},
+            tooltip:{ callbacks:{ label:ctx=>' '+fmt.int(ctx.parsed.x) } }
+          },
+          scales:{ x:{ beginAtZero:true }, y:{ ticks:{ autoSkip:false } } }
+        }
+      });
+    }
+
+    function renderPie(rows){
+      const byCat=!!state.columns.category, byBrand=!!state.columns.brand;
+      const k={ imp: state.columns.impressions ? normalizeHeader(state.columns.impressions.name) : null,
+                clk: state.columns.clicks ? normalizeHeader(state.columns.clicks.name) : null,
+                conv: state.columns.conv ? normalizeHeader(state.columns.conv.name) : null };
+      const volKey = k.imp || k.clk || k.conv;
+
+      let keyName=null;
+      if(byCat){ keyName=normalizeHeader(state.columns.category.name); el.pieTitle.textContent='Breakdown by Category'; }
+      else if(byBrand){ keyName=normalizeHeader(state.columns.brand.name); el.pieTitle.textContent='Breakdown by Brand'; }
+      else{ el.pieTitle.textContent='Breakdown by Top Terms'; }
+
+      const map=new Map();
+      if(keyName){ for(const r of rows){ const key=String(r[keyName] ?? '(Unspecified)'); const v=volKey?(+r[volKey]||0):0; map.set(key,(map.get(key)||0)+v); } }
+      else{ const tkey = state.columns.term ? normalizeHeader(state.columns.term.name) : null; for(const r of rows){ const key=tkey?String(r[tkey]):'(unknown)'; const v=volKey?(+r[volKey]||0):0; map.set(key,(map.get(key)||0)+v); } }
+
+      let pairs=[...map.entries()].filter(p=>p[1]>0).sort((a,b)=>b[1]-a[1]);
+      const MAX_SLICES=10; if(pairs.length>MAX_SLICES){ const top=pairs.slice(0,MAX_SLICES); const other=pairs.slice(MAX_SLICES).reduce((s,p)=>s+p[1],0); if(other>0) pairs=[...top,['Other',other]]; else pairs=top; }
+      const labels=pairs.map(p=>p[0]); const data=pairs.map(p=>p[1]);
+      const hasData = labels.length>0 && data.some(v=>v>0);
+      setNoData(el.pieCard, hasData);
+      if(state.charts.pie) state.charts.pie.destroy();
+      state.charts.pie = new Chart(el.pie.getContext('2d'), {
+        type:'pie',
+        data:{ labels, datasets:[{ data, backgroundColor:chartColors(labels.length) }] },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:{
+            legend:{ display:true, position:'bottom', labels:{ boxWidth:12, boxHeight:12, padding:10, font:{ size:11 } } },
+            tooltip:{ enabled:true }
+          }
+        }
+      });
+    }
+
+    function renderLine(rows){
+      if(!state.columns.date){ el.lineCard.hidden=true; if(state.charts.line){ state.charts.line.destroy(); state.charts.line=null; } return; }
+      el.lineCard.hidden=false;
+      const dateKey=normalizeHeader(state.columns.date.name);
+      const impKey = state.columns.impressions ? normalizeHeader(state.columns.impressions.name) : null;
+      const clkKey = state.columns.clicks ? normalizeHeader(state.columns.clicks.name) : null;
+      const ctrKey = state.columns.ctr ? normalizeHeader(state.columns.ctr.name) : null;
+
+      const map=new Map();
+      for(const r of rows){
+        const d=r[dateKey]; const iso=toISO(d); if(!iso) continue;
+        const imp=impKey?(+r[impKey]||0):0;
+        const clk = clkKey?(+r[clkKey]||0) : (ctrKey && impKey ? (+r[ctrKey])*imp : 0);
+        const prev=map.get(iso)||{imp:0,clk:0}; prev.imp+=imp; prev.clk+=clk; map.set(iso,prev);
+      }
+      const series=[...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+      const labels=series.map(s=>s[0]);
+      const ctrData=series.map(s => s[1].imp>0 ? s[1].clk/s[1].imp : 0);
+
+      const hasData = labels.length>0; setNoData(el.lineCard, hasData);
+      if(state.charts.line) state.charts.line.destroy();
+
+      // Alternate color by month change (line + points)
+      const monthKeys = labels.map(l => l.slice(0,7)); // YYYY-MM
+      const uniqueMonths=[]; const monthIndex = monthKeys.map(m=>{ let i=uniqueMonths.indexOf(m); if(i===-1){ i=uniqueMonths.push(m)-1; } return i; });
+      const pal = chartColors(8); const colorFor = i=> pal[i % pal.length];
+      const pointColors = monthIndex.map(i=>colorFor(i));
+
+      state.charts.line = new Chart(el.line.getContext('2d'), {
+        type:'line',
+        data:{ labels, datasets:[{ 
+          label:'CTR',
+          data:ctrData,
+          fill:false,
+          tension:.2,
+          pointRadius:2,
+          pointHoverRadius:3,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          borderWidth:2,
+          segment:{ borderColor: ctx => colorFor(monthIndex[ctx.p1DataIndex]||0) }
+        }] },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:x=>' '+(x.parsed.y*100).toFixed(2)+'%' } } },
+          scales:{
+            x:{ ticks:{ display:false }, grid:{ display:false } },
+            y:{ ticks:{ callback:v=>(v*100).toFixed(0)+'%' }, suggestedMin:0 }
+          }
+        }
+      });
+    }
+
+    /* ============================== RENDER ALL ========================== */
+    function enableUI(ready){ el.filters.hidden=!ready; el.kpis.hidden=!ready; el.charts.hidden=!ready; el.dlCsv.disabled=!ready; }
+    function _renderAll(){
+      const filtered = getFilteredRows();
+      const k = computeKPIs(filtered);
+      renderKPIs(k);
+      renderBar(filtered);
+      renderPie(filtered);
+      renderLine(filtered);
+    }
+    window._renderAll=_renderAll;
+
+    /* =============================== CSV DL ============================= */
+    el.dlCsv.addEventListener('click', ()=>{
+      const rows = getFilteredRows();
+      if (!rows.length){ alert('No rows to download for current filters.'); return; }
+      const headers = state.rawHeaders.slice();
+      const out = rows.map(r=>{ const o={}; headers.forEach(h=>o[h]=r[h]); return o; });
+      const csv = toCSV(headers, out);
+      const base = state.fileName? state.fileName.replace(/\.[^.]+$/,'') : 'search_data';
+      const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+      saveAs(blob, base+'-filtered.csv');
+    });
+
+    function toCSV(headers, rows){
+      const esc=v=>{ if(v==null) return ''; const s=String(v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+      const head=headers.map(esc).join(',')+'\n';
+      const body=rows.map(r=>headers.map(h=>esc(r[h])).join(',')).join('\n');
+      return head+body;
+    }
+  </script>
+</body>
+</html>
