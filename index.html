@@ -6,13 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Self-contained, auto-loading Excel dashboard with KPIs, filters, and charts" />
 
-  <!-- SheetJS + Chart.js + FileSaver (CDNs; works on GitHub Pages) -->
+  <!-- SheetJS + Chart.js + FileSaver (CDNs) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
-    /* ============== Theme tokens ============== */
     :root{
       --bg:#0f1216; --panel:#161b22; --text:#e7ecf3; --muted:#9aa6b2; --accent:#8ab4f8;
       --ok:#36d399; --warn:#fbbf24; --danger:#f87171; --border:#273043; --chip:#212734;
@@ -25,33 +24,21 @@
       --shadow:0 6px 18px rgba(15,23,42,.08);
       --header-grad: linear-gradient(180deg, rgba(15,23,42,.06) 0%, rgba(15,23,42,0) 100%);
     }
-    /* ============== Base ============== */
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{
-      margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans";
-      color:var(--text); background:var(--bg); /* removed radial that caused gray blotch */
-    }
+    body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans";color:var(--text);background:var(--bg)}
     h1,h2,h3{margin:0;font-weight:700;letter-spacing:.3px}
-    button{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;transition:transform .05s ease, background .2s ease, border-color .2s ease}
+    button{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;transition:transform .05s ease, background .2s ease}
     button:hover{transform:translateY(-1px)} button:disabled{opacity:.5;cursor:not-allowed} button.ghost{background:transparent}
     select.inline,input[type=file]{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
 
-    /* ============== Header ============== */
-    .app-header{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:20px clamp(16px,3vw,32px);border-bottom:1px solid var(--border);
-      background:var(--header-grad);position:sticky;top:0;backdrop-filter:blur(6px);z-index:10
-    }
+    .app-header{display:flex;align-items:center;justify-content:space-between;padding:20px clamp(16px,3vw,32px);border-bottom:1px solid var(--border);background:var(--header-grad);position:sticky;top:0;backdrop-filter:blur(6px);z-index:10}
     .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .theme-toggle{display:inline-flex;align-items:center;gap:6px;background:var(--chip)}
-    .theme-toggle .icon{font-size:16px}
+    .theme-toggle{display:inline-flex;align-items:center;gap:6px;background:var(--chip)} .theme-toggle .icon{font-size:16px}
 
-    /* ============== Status ============== */
     .status{padding:10px clamp(16px,3vw,32px)}
     .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:var(--chip);border:1px solid var(--border);border-radius:999px;color:var(--muted)}
 
-    /* ============== Filters ============== */
     .filters{display:grid;gap:12px;grid-template-columns:repeat(12,1fr);padding:10px clamp(16px,3vw,32px) 2px}
     .filter{display:grid;gap:6px}
     .filter label{font-weight:600;color:var(--muted)}
@@ -61,36 +48,24 @@
     .filter:nth-child(1),.filter:nth-child(2){grid-column:span 2}
     .date-range{display:flex;align-items:center;gap:8px} .sep{color:var(--muted)}
 
-    /* ============== KPIs ============== */
     .kpis{padding:8px clamp(16px,3vw,32px);display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
     .kpi-card{grid-column:span 3;min-height:120px;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
-    .kpi-label{color:var(--muted);font-weight:600;letter-spacing:.2px}
-    .kpi-value{font-size:26px;font-weight:800;margin-top:6px}
-    .kpi-sub{color:var(--muted);margin-top:10px}
-    .kpi-sub-strong{color:var(--ok);font-weight:700}
+    .kpi-label{color:var(--muted);font-weight:600}.kpi-value{font-size:26px;font-weight:800;margin-top:6px}.kpi-sub{color:var(--muted);margin-top:10px}.kpi-sub-strong{color:var(--ok);font-weight:700}
 
-    /* ============== Charts grid ============== */
     .charts{padding:8px clamp(16px,3vw,32px) 28px;display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-    .chart-card{
-      position:relative;grid-column:span 4;background:var(--panel);border:1px solid var(--border);
-      border-radius:18px;padding:18px 18px 14px;box-shadow:var(--shadow);
-      height:380px;max-height:460px;overflow:hidden;display:flex;flex-direction:column
-    }
+    .chart-card{position:relative;grid-column:span 4;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px 18px 14px;box-shadow:var(--shadow);height:380px;max-height:460px;overflow:hidden;display:flex;flex-direction:column}
     .chart-title{font-weight:700;margin-bottom:10px;color:var(--muted)}
     .chart-body{flex:1;min-height:0;position:relative}
     canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
     .nodata{position:absolute;inset:0;display:none;place-items:center;color:var(--muted);font-weight:600;pointer-events:none}
 
-    /* ============== Footer ============== */
     .app-footer{padding:18px clamp(16px,3vw,32px);border-top:1px solid var(--border);color:var(--muted);text-align:center;background:linear-gradient(0deg,rgba(255,255,255,.03),transparent)}
 
-    /* ============== Responsive ============== */
     @media (max-width:1200px){.kpi-card{grid-column:span 6}.chart-card{grid-column:span 6}}
     @media (max-width:720px){.filter:nth-child(1),.filter:nth-child(2),.filter.date-filter{grid-column:span 6}.filter.grow{grid-column:span 12}.kpi-card,.chart-card{grid-column:span 12}.chart-card{height:320px}}
   </style>
 </head>
 <body>
-  <!-- Header -->
   <header class="app-header">
     <div><h1>🔎 Search Terms Analytics</h1></div>
     <div class="actions">
@@ -102,12 +77,10 @@
     </div>
   </header>
 
-  <!-- Status -->
   <section class="status" id="statusArea" aria-live="polite">
     <div class="pill">Loading Excel data…</div>
   </section>
 
-  <!-- Filters -->
   <section class="filters" id="filtersSection" hidden>
     <div class="filter"><label for="categoryFilter">Category</label><select id="categoryFilter"><option value="__ALL__">All</option></select></div>
     <div class="filter"><label for="brandFilter">Brand</label><select id="brandFilter"><option value="__ALL__">All</option></select></div>
@@ -118,7 +91,6 @@
     <div class="filter right"><button id="clearFiltersBtn" class="ghost" title="Clear filters">Clear Filters</button></div>
   </section>
 
-  <!-- KPIs -->
   <section class="kpis" id="kpiSection" hidden>
     <div class="kpi-card"><div class="kpi-label">Total Searches</div><div class="kpi-value" id="kpiTotalSearches">—</div><div class="kpi-sub" id="kpiTotalImpressions">Impressions: —</div></div>
     <div class="kpi-card"><div class="kpi-label">Top Search Term</div><div class="kpi-value" id="kpiTopTerm">—</div><div class="kpi-sub" id="kpiTopTermVolume">Volume: —</div></div>
@@ -126,7 +98,6 @@
     <div class="kpi-card"><div class="kpi-label">Conversions</div><div class="kpi-value" id="kpiConversions">—</div><div class="kpi-sub">Revenue</div><div class="kpi-sub-strong" id="kpiRevenue">—</div></div>
   </section>
 
-  <!-- Charts -->
   <section class="charts" id="chartsSection" hidden>
     <div class="chart-card" id="barCard">
       <div class="chart-title">Top 10 Search Terms by Volume</div>
@@ -135,7 +106,6 @@
         <canvas id="barChart"></canvas>
       </div>
     </div>
-
     <div class="chart-card" id="pieCard">
       <div class="chart-title" id="pieTitle">Breakdown by Category</div>
       <div class="chart-body">
@@ -143,7 +113,6 @@
         <canvas id="pieChart"></canvas>
       </div>
     </div>
-
     <div class="chart-card" id="lineCard" hidden>
       <div class="chart-title" id="lineTitle">CTR Over Time</div>
       <div class="chart-body">
@@ -153,7 +122,6 @@
     </div>
   </section>
 
-  <!-- Footer -->
   <footer class="app-footer"><small>Runs fully client-side.</small></footer>
 
   <script>
@@ -180,84 +148,147 @@
     themeBtn:document.getElementById('themeToggle'),
     kpi:{searches:document.getElementById('kpiTotalSearches'), impressions:document.getElementById('kpiTotalImpressions'), topTerm:document.getElementById('kpiTopTerm'), topVol:document.getElementById('kpiTopTermVolume'), clicks:document.getElementById('kpiClicks'), ctr:document.getElementById('kpiCTR'), conv:document.getElementById('kpiConversions'), rev:document.getElementById('kpiRevenue')}
   };
-  const state={ rawHeaders:[], rows:[], columns:{}, present:{category:false,brand:false,date:false,ctr:false}, charts:{bar:null,pie:null,line:null}, fileName:'', availableFiles:[] };
+  const state={ rawHeaders:[], rows:[], columns:{}, present:{category:false,brand:false,date:false,ctr:false}, charts:{bar:null,pie:null,line:null}, fileName:'', availableFiles:[], fileMap:{} };
 
-  const SYN={
-    term:["search term","customer search term","term","keyword","search keyword","search query","query"],
-    impressions:["impressions","searches","volume","search volume","views"],
-    clicks:["clicks","click"],
-    ctr:["ctr","click-through rate","click through rate","click thru rate"],
-    conv:["conversions","orders","purchases","transactions","sales qty","convs"],
-    revenue:["revenue","sales","gmv","turnover","amount","net sales","aov"],
-    category:["category","product category","cat","product type","taxonomy"],
-    brand:["brand","maker","manufacturer","brand name"],
-    date:["date","day","reporting date","calendar date","dt","order date"]
-  };
-  const SUBSTR={
-    term:[/term|keyword|query/i], impressions:[/impr|search|volume|views?/i], clicks:[/click/i], ctr:[/ctr|click.?through/i], conv:[/conv|order|purchase|transaction/i], revenue:[/rev(enue)?|sales|gmv|turnover|amount/i], category:[/categor|product type|taxonomy/i], brand:[/brand|manufacturer|maker/i], date:[/date|day/i]
-  };
+  const SYN={ term:["search term","customer search term","term","keyword","search keyword","search query","query"],
+    impressions:["impressions","searches","volume","search volume","views"], clicks:["clicks","click"],
+    ctr:["ctr","click-through rate","click through rate","click thru rate"], conv:["conversions","orders","purchases","transactions","sales qty","convs"],
+    revenue:["revenue","sales","gmv","turnover","amount","net sales","aov"], category:["category","product category","cat","product type","taxonomy"],
+    brand:["brand","maker","manufacturer","brand name"], date:["date","day","reporting date","calendar date","dt","order date"] };
+  const SUBSTR={ term:[/term|keyword|query/i], impressions:[/impr|search|volume|views?/i], clicks:[/click/i], ctr:[/ctr|click.?through/i], conv:[/conv|order|purchase|transaction/i], revenue:[/rev(enue)?|sales|gmv|turnover|amount/i], category:[/categor|product type|taxonomy/i], brand:[/brand|manufacturer|maker/i], date:[/date|day/i] };
   const fmt={ int:n=>isFinite(n)?n.toLocaleString():"—", pct:r=>isFinite(r)?(r*100).toLocaleString(undefined,{maximumFractionDigits:2})+'%':"—", money:n=>isFinite(n)?n.toLocaleString(undefined,{style:"currency",currency:"USD"}):"—" };
-
   const normalizeHeader=h=>String(h||"").trim().toLowerCase().replace(/\s+/g," ");
-  const escapeHtml=s=>String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  const escapeHtml=s=>String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const debounce=(fn,ms=150)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
   const toISO=d=>!(d instanceof Date)?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
   function setStatus(html){ el.status.innerHTML = `<div class="pill">${html}</div>`; }
 
-  /* ============================ Startup ============================ */
   document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
-    wireCommonButtons();
+    wireButtons();
     await autoLoadExcel();
   });
 
   function initTheme(){
-    try{
-      const saved=localStorage.getItem('theme')||'dark';
-      if(saved==='light') document.body.classList.add('light');
-      updateThemeButton();
-      el.themeBtn?.addEventListener('click',()=>{
-        document.body.classList.toggle('light');
-        localStorage.setItem('theme', document.body.classList.contains('light')?'light':'dark');
-        updateThemeButton();
-        if (window._renderAll) window._renderAll();
-      });
-    }catch(e){ console.error(e); }
-    function updateThemeButton(){
-      if(!el.themeBtn) return;
+    const saved=localStorage.getItem('theme')||'dark';
+    if(saved==='light') document.body.classList.add('light');
+    updateThemeBtn();
+    el.themeBtn.addEventListener('click',()=>{
+      document.body.classList.toggle('light');
+      localStorage.setItem('theme', document.body.classList.contains('light')?'light':'dark');
+      updateThemeBtn();
+      window._renderAll && window._renderAll();
+    });
+    function updateThemeBtn(){
       const light=document.body.classList.contains('light');
       el.themeBtn.querySelector('.icon').textContent= light?'☀️':'🌙';
       el.themeBtn.querySelector('.label').textContent= light?'Light':'Dark';
     }
   }
-
-  function wireCommonButtons(){
-    el.pickLocalBtn?.addEventListener('click', ()=> el.fileInput?.click());
-    el.fileInput?.addEventListener('change', handleLocalFile);
-    el.dlCsv?.addEventListener('click', onDownloadCsv);
+  function wireButtons(){
+    el.pickLocalBtn.addEventListener('click', ()=> el.fileInput.click());
+    el.fileInput.addEventListener('change', handleLocalFile);
+    el.dlCsv.addEventListener('click', onDownloadCsv);
   }
 
   async function autoLoadExcel(){
     try{
-      state.availableFiles = await getExcelList();
-      setupFilePicker(state.availableFiles);
-
+      const list = await getExcelList();
+      setupFilePicker(list);
       const url = new URL(window.location.href);
       const qFile = url.searchParams.get('file');
       const last  = localStorage.getItem('lastExcelFile');
 
-      if(qFile)            await tryLoadSpecific(qFile);
-      else if(last && state.availableFiles.includes(last)) await tryLoadSpecific(last);
-      else if(state.availableFiles.length)                 await tryLoadSpecific(state.availableFiles[0]);
-      else {
-        try { await tryLoadSpecific('search_data.xlsx'); }
-        catch { setStatus('📁 Tip: add <code>excel-index.json</code> with file names, or click <b>Open XLSX</b> to load a local file.'); }
-      }
+      let pick = qFile || (last && state.availableFiles.includes(last) ? last : null) || (state.availableFiles[0] || null);
+      if(!pick) throw new Error('No Excel files found in this folder.');
+      await tryLoadSpecific(pick);
     }catch(err){
       console.error(err);
-      setStatus('⚠️ Could not auto-load Excel. Add <code>excel-index.json</code> or use <b>Open XLSX</b>.');
+      setStatus('⚠️ No Excel found. Add <code>excel-index.json</code> or click <b>Open XLSX</b>.');
     }
+  }
+
+  /* ---------- Get Excel file list (Pages-ready) ---------- */
+  async function getExcelList(){
+    state.availableFiles = [];
+    state.fileMap = {};
+
+    // 1) manifest (best for GitHub Pages)
+    try{
+      const res = await fetch(MANIFEST_FILE, { cache:'no-store' });
+      if(res.ok){
+        const manifest = await res.json();
+        let items = [];
+        if(Array.isArray(manifest)) items = manifest;
+        else if(Array.isArray(manifest.files)) items = manifest.files;
+        if(items.length){
+          for(const it of items){
+            if(typeof it === 'string' && /\.xlsx$/i.test(it)){ state.availableFiles.push(it.split('/').pop()); state.fileMap[it.split('/').pop()] = it; }
+            else if(it && typeof it === 'object' && /\.xlsx$/i.test(it.name)){ state.availableFiles.push(it.name); state.fileMap[it.name] = it.url || it.name; }
+          }
+        }
+      }
+    }catch(_){}
+
+    if(state.availableFiles.length) return state.availableFiles;
+
+    // 2) GitHub API (public repos) — list current folder in repo
+    const ghList = await listExcelViaGitHubAPI();
+    if(ghList.length){
+      for(const f of ghList){ state.availableFiles.push(f.name); state.fileMap[f.name] = f.relative || f.name; }
+    }
+
+    // 3) Fallback to common default names (if directly accessible)
+    const guesses = ['search_data.xlsx','SearchTerms.xlsx','data.xlsx'];
+    for(const g of guesses){ try{ const ok = await headExists(g); if(ok){ state.availableFiles.push(g); state.fileMap[g]=g; break; } }catch(_){} }
+
+    return state.availableFiles;
+  }
+
+  async function listExcelViaGitHubAPI(){
+    try{
+      if(!/\.github\.io$/i.test(location.hostname)) return [];
+      const owner = location.hostname.replace(/\.github\.io$/i,'');
+      const parts = location.pathname.split('/').filter(Boolean);
+      const repo  = parts[0] || `${owner}.github.io`;
+      const dirServed = location.pathname.replace(/\/[^\/]*$/,'/'); // keeps trailing slash
+      // path in repo relative to repo root:
+      const rel = dirServed.replace(new RegExp(`^/${repo}/`),'').replace(/^\/|\/$/g,''); // '' or 'sub/dir'
+      const tryPaths = [rel, rel?`docs/${rel}`:'docs'];
+
+      for(const p of tryPaths){
+        const api = `https://api.github.com/repos/${owner}/${repo}/contents/${p?encodeURIComponent(p).replace(/%2F/g,'/'):''}`;
+        const r = await fetch(api, {cache:'no-store'});
+        if(!r.ok) continue;
+        const arr = await r.json();
+        if(!Array.isArray(arr)) continue;
+        const files = arr.filter(x=>/\.xlsx$/i.test(x.name)).map(x=>({name:x.name, relative:x.name}));
+        if(files.length) return files;
+      }
+    }catch(_){}
+    return [];
+  }
+
+  async function headExists(rel){
+    try{
+      const r = await fetch(rel, { method:'HEAD', cache:'no-store' });
+      return r.ok;
+    }catch(_){ return false; }
+  }
+
+  function setupFilePicker(files){
+    if(!Array.isArray(files) || !files.length){ el.fileSelect.hidden = true; return; }
+    if(files.length < 2){ el.fileSelect.hidden = true; return; }
+    el.fileSelect.innerHTML = files.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
+    el.fileSelect.hidden = false;
+    el.fileSelect.addEventListener('change', async (e)=>{ const name=e.target.value; if(name) await tryLoadSpecific(name); });
+  }
+
+  async function tryLoadSpecific(name){
+    const url = state.fileMap[name] || name;
+    setStatus(`Loading <code>${escapeHtml(name)}</code> …`);
+    const buf = await fetchArrayBuffer(url);
+    await tryLoadFromBuffer(buf, name);
   }
 
   async function handleLocalFile(e){
@@ -266,37 +297,13 @@
     setStatus(`Reading local file <code>${escapeHtml(file.name)}</code> …`);
     const buf = await file.arrayBuffer();
     await tryLoadFromBuffer(buf, file.name);
-    e.target.value = ''; // allow re-pick same file
+    e.target.value = '';
   }
 
-  async function getExcelList(){
-    // 1) Try manifest (GitHub Pages)
-    try{
-      const res = await fetch(MANIFEST_FILE, { cache:'no-store' });
-      if(res.ok){
-        const list = await res.json();
-        if(Array.isArray(list) && list.every(x=>typeof x==='string')){
-          return Array.from(new Set(list)).sort((a,b)=>a.localeCompare(b));
-        }
-      }
-    }catch(_){}
-    // 2) Try autoindex (local servers)
-    return await listXlsxInDirectory();
-  }
-
-  function setupFilePicker(files){
-    if(!Array.isArray(files) || files.length < 2){ el.fileSelect.hidden = true; return; }
-    el.fileSelect.innerHTML = files.map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('');
-    el.fileSelect.hidden = false;
-    el.fileSelect.addEventListener('change', async (e)=>{
-      const name = e.target.value; if(!name) return; await tryLoadSpecific(name);
-    });
-  }
-
-  async function tryLoadSpecific(fileName){
-    setStatus(`Loading <code>${escapeHtml(fileName)}</code> …`);
-    const buf = await fetchArrayBuffer(fileName);
-    await tryLoadFromBuffer(buf, fileName);
+  async function fetchArrayBuffer(url){
+    const res = await fetch(url, { cache:'no-store' });
+    if(!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return await res.arrayBuffer();
   }
 
   async function tryLoadFromBuffer(buf, fileName){
@@ -348,10 +355,9 @@
       date:        findHeaderSmart(headers, SYN.date, SUBSTR.date)
     };
     state.present = { category: !!state.columns.category, brand: !!state.columns.brand, date: !!state.columns.date, ctr: !!state.columns.ctr };
-
     state.fileName = String(fileName||'');
     if(state.fileName) localStorage.setItem('lastExcelFile', state.fileName);
-    if(!el.fileSelect.hidden && state.fileName){ el.fileSelect.value = state.fileName; }
+    if(!el.fileSelect.hidden && state.fileName && state.availableFiles.includes(state.fileName)){ el.fileSelect.value = state.fileName; }
 
     initFilters();
     enableUI(true);
@@ -360,29 +366,13 @@
     setStatus(`Loaded <code>${escapeHtml(state.fileName||'(local file)')}</code> • Rows: ${rows.length.toLocaleString()} • Sheet: ${escapeHtml(sheetName)}`);
   }
 
-  async function fetchArrayBuffer(url){
-    const res = await fetch(url, { cache:'no-store' });
-    if(!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return await res.arrayBuffer();
-  }
-  async function listXlsxInDirectory(){
-    try{
-      const res = await fetch('./', { cache:'no-store' });
-      if(!res.ok) return [];
-      const html = await res.text();
-      const matches = [...html.matchAll(/href="([^"?#]+\.(?:xlsx|XLSX))"/g)].map(m => decodeURIComponent(m[1]));
-      const uniq = Array.from(new Set(matches.filter(n => !/^\./.test(n))));
-      return uniq.sort((a,b)=>a.localeCompare(b));
-    }catch(_){ return []; }
-  }
-
-  /* ======================== Parsing utils ========================= */
-  function countNonEmpty(arr){ return (arr||[]).reduce((n,v)=> n + (v!==undefined && v!==null && String(v).trim()!=="\""), 0); }
+  /* ======================== Parse helpers ======================== */
+  function countNonEmpty(arr){ return (arr||[]).reduce((n,v)=> n + (v!==undefined && v!==null && String(v).trim()!=="") , 0); }
   function parseNumber(v){
     if(v==null) return 0;
     if(typeof v==='number') return isFinite(v)?v:0;
     let s=String(v).trim(); if(!s) return 0;
-    if(/^\(.*\)$/.test(s)) s='-'+s.slice(1,-1); // (1,234) -> -1,234
+    if(/^\(.*\)$/.test(s)) s='-'+s.slice(1,-1);
     if(/%$/.test(s)){ const num=parseFloat(s.replace(/[%\s,]/g,'')); return isFinite(num)?num/100:0; }
     s=s.replace(/[$€£₹¥₩]|[A-Za-z]/g,'').replace(/,/g,'').trim();
     const num=parseFloat(s); return isFinite(num)?num:0;
@@ -455,11 +445,7 @@
     if(!col) return [];
     const key = normalizeHeader(col.name);
     const set = new Set();
-    state.rows.forEach(r => {
-      const v = r[key];
-      if (v==null || v==="") return;
-      set.add(String(v));
-    });
+    state.rows.forEach(r => { const v = r[key]; if (v==null || v==="") return; set.add(String(v)); });
     return Array.from(set).sort((a,b)=> String(a).localeCompare(String(b)));
   }
   function buildSelect(sel, options){
@@ -524,8 +510,7 @@
   /* ================================ Charts ================================ */
   function setNoData(cardEl, hasData){
     const nd=cardEl.querySelector('.nodata'); if(!nd) return;
-    if(hasData){ nd.style.display='none'; nd.hidden=true; }
-    else { nd.style.display='grid'; nd.hidden=false; }
+    if(hasData){ nd.style.display='none'; nd.hidden=true; } else { nd.style.display='grid'; nd.hidden=false; }
   }
   function chartColors(n){ const light=document.body.classList.contains('light'); const L=light?55:65; return Array.from({length:n},(_,i)=>`hsl(${Math.round((360/n)*i)},70%,${L}%)`); }
   function pureColors(n){ const base=['#E74C3C','#3498DB','#2ECC71','#F1C40F','#9B59B6','#E67E22','#1ABC9C','#E91E63','#34495E','#95A5A6','#D35400','#27AE60']; return Array.from({length:n},(_,i)=> base[i % base.length]); }
@@ -549,11 +534,8 @@
       type:'bar',
       data:{ labels, datasets:[{ label:'Volume', data, borderWidth:0, backgroundColor: dsColor }] },
       options:{
-        indexAxis:'y',
-        responsive:true,
-        maintainAspectRatio:false,
-        layout:{ padding:8 },
-        interaction:{ mode:'nearest', axis:'y', intersect:false }, /* hover anywhere along Y band */
+        indexAxis:'y', responsive:true, maintainAspectRatio:false, layout:{ padding:8 },
+        interaction:{ mode:'nearest', axis:'y', intersect:false },
         plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>' '+fmt.int(ctx.parsed.x) } } },
         scales:{ x:{ beginAtZero:true, grid:{ display:false } }, y:{ ticks:{ autoSkip:false }, grid:{ display:true, lineWidth:0.3 } } }
       }
@@ -589,9 +571,7 @@
         data,
         backgroundColor:pureColors(labels.length),
         borderColor: cssVar('--panel') || (document.body.classList.contains('light')?'#fff':'#161b22'),
-        borderWidth:2,           /* subtle spacing between slices */
-        hoverOffset:6,
-        cutout:'45%'             /* donut look like screenshot */
+        borderWidth:2, hoverOffset:6, cutout:'45%'
       }] },
       options:{
         responsive:true, maintainAspectRatio:false, layout:{ padding:8 },
@@ -639,22 +619,17 @@
       }] },
       options:{
         responsive:true, maintainAspectRatio:false, layout:{ padding:8 },
-        interaction:{ mode:'index', axis:'x', intersect:false }, /* hover anywhere in vertical band */
+        interaction:{ mode:'index', axis:'x', intersect:false },
         plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:x=>' '+(x.parsed.y*100).toFixed(2)+'%' } } },
-        scales:{
-          x:{ ticks:{ display:false }, grid:{ display:false } }, /* no x-axis lines nor labels */
-          y:{ ticks:{ callback:v=>(v*100).toFixed(0)+'%' }, suggestedMin:0 }
-        }
+        scales:{ x:{ ticks:{ display:false }, grid:{ display:false } }, y:{ ticks:{ callback:v=>(v*100).toFixed(0)+'%' }, suggestedMin:0 } }
       }
     });
   }
 
-  /* ============================ Render all ============================ */
   function enableUI(ready){ el.filters.hidden=!ready; el.kpis.hidden=!ready; el.charts.hidden=!ready; el.dlCsv.disabled=!ready; }
   function _renderAll(){ const filtered = getFilteredRows(); const k = computeKPIs(filtered); renderKPIs(k); renderBar(filtered); renderPie(filtered); renderLine(filtered); }
   window._renderAll=_renderAll;
 
-  /* =============================== CSV =============================== */
   function onDownloadCsv(){
     const rows = getFilteredRows();
     if (!rows.length){ alert('No rows to download for current filters.'); return; }
